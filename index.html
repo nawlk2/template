@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Controle Financeiro Avançado</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f6fa;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        #loginSection {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        #loginSection input {
+            margin: 5px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        /* ... (mantenha o restante do CSS original) ... */
+    </style>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "SUA_API_KEY",
+            authDomain: "SEU_PROJETO.firebaseapp.com",
+            projectId: "SEU_PROJETO",
+            storageBucket: "SEU_PROJETO.appspot.com",
+            messagingSenderId: "SEU_SENDER_ID",
+            appId: "SEU_APP_ID"
+        };
+
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+    </script>
+</head>
+<body>
+    <div id="loginSection">
+        <input type="email" id="email" placeholder="Email">
+        <input type="password" id="senha" placeholder="Senha">
+        <button class="botao" onclick="login()">Entrar</button>
+        <button class="botao" onclick="criarConta()">Criar Conta</button>
+    </div>
+
+    <div class="dashboard">
+        <!-- Mantenha todo o conteúdo original do dashboard aqui -->
+        <!-- ... (cards de orçamento, resumo e gráficos) ... -->
+        
+        <!-- Adicione os botões de salvamento no card de Resumo -->
+        <div class="card">
+            <h2>Resumo Financeiro</h2>
+            <div id="resumo">
+                <!-- ... -->
+            </div>
+            <button class="botao" onclick="salvarDados()">💾 Salvar Dados</button>
+            <button class="botao" onclick="carregarDados()">📂 Carregar Dados</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let chartGastos, chartMetas;
+
+        // ======================
+        // FUNÇÕES ORIGINAIS
+        // ======================
+        function adicionarLinha(tabelaId) {
+            const tabela = document.getElementById(tabelaId);
+            const novaLinha = tabela.insertRow();
+            novaLinha.innerHTML = `
+                <td><input type="text"></td>
+                <td><input type="number" oninput="calcularTotais()"></td>
+            `;
+        }
+
+        function calcularTotais() {
+            let totalRenda = 0;
+            document.querySelectorAll('#renda input[type="number"]').forEach(input => {
+                totalRenda += parseFloat(input.value) || 0;
+            });
+
+            let totalDespesas = 0;
+            document.querySelectorAll('#despesas input[type="number"]').forEach(input => {
+                totalDespesas += parseFloat(input.value) || 0;
+            });
+
+            document.getElementById('totalRenda').textContent = `R$ ${totalRenda.toFixed(2)}`;
+            document.getElementById('totalDespesas').textContent = `R$ ${totalDespesas.toFixed(2)}`;
+            document.getElementById('saldo').textContent = `R$ ${(totalRenda - totalDespesas).toFixed(2)}`;
+
+            atualizarGraficos();
+        }
+
+        // ... (mantenha as outras funções originais aqui) ...
+
+        // ======================
+        // NOVAS FUNÇÕES FIREBASE
+        // ======================
+        async function salvarDados() {
+            const user = auth.currentUser;
+            if (!user) return alert("Faça login para salvar!");
+
+            const dados = {
+                renda: obterDadosTabela('renda'),
+                despesas: obterDadosTabela('despesas'),
+                metas: obterDadosMetas(),
+                salvoEm: new Date()
+            };
+
+            try {
+                await db.collection('usuarios').doc(user.uid).set(dados);
+                alert('Dados salvos com sucesso!');
+            } catch (error) {
+                console.error("Erro ao salvar:", error);
+                alert('Erro ao salvar dados!');
+            }
+        }
+
+        async function carregarDados() {
+            const user = auth.currentUser;
+            if (!user) return alert("Faça login para carregar!");
+
+            try {
+                const doc = await db.collection('usuarios').doc(user.uid).get();
+                if (doc.exists) {
+                    const dados = doc.data();
+                    preencherTabela('renda', dados.renda);
+                    preencherTabela('despesas', dados.despesas);
+                    preencherMetas(dados.metas);
+                    calcularTotais();
+                    alert('Dados carregados!');
+                }
+            } catch (error) {
+                console.error("Erro ao carregar:", error);
+                alert('Erro ao carregar dados!');
+            }
+        }
+
+        function obterDadosTabela(tabelaId) {
+            return Array.from(document.querySelectorAll(`#${tabelaId} tr`))
+                .slice(1)
+                .map(tr => {
+                    const inputs = tr.querySelectorAll('input');
+                    return {
+                        descricao: inputs[0].value,
+                        valor: parseFloat(inputs[1].value) || 0
+                    };
+                });
+        }
+
+        function preencherTabela(tabelaId, dados) {
+            const tabela = document.getElementById(tabelaId);
+            tabela.innerHTML = `<tr><th>${tabelaId === 'renda' ? 'Fonte' : 'Categoria'}</th><th>Valor</th></tr>`;
+            
+            dados.forEach(item => {
+                const novaLinha = tabela.insertRow();
+                novaLinha.innerHTML = `
+                    <td><input type="text" value="${item.descricao}"></td>
+                    <td><input type="number" value="${item.valor}" oninput="calcularTotais()"></td>
+                `;
+            });
+        }
+
+        function preencherMetas(metas) {
+            const container = document.getElementById('metas');
+            container.innerHTML = '';
+            metas.forEach(meta => {
+                const novaMeta = document.createElement('div');
+                novaMeta.className = 'meta-item';
+                novaMeta.innerHTML = `
+                    <input type="text" placeholder="Nome da Meta" class="nome-meta" value="${meta.nome}">
+                    <input type="number" placeholder="Valor Alvo" class="valor-meta" value="${meta.valor}">
+                    <button class="botao" onclick="calcularMetas()">Atualizar</button>
+                    <div class="progresso-meta">
+                        <div class="barra-progresso" style="width: ${meta.progresso}%"></div>
+                    </div>
+                `;
+                container.appendChild(novaMeta);
+            });
+        }
+
+        function obterDadosMetas() {
+            return Array.from(document.querySelectorAll('.meta-item')).map(item => ({
+                nome: item.querySelector('.nome-meta').value,
+                valor: parseFloat(item.querySelector('.valor-meta').value) || 0,
+                progresso: parseFloat(item.querySelector('.barra-progresso').style.width)
+            }));
+        }
+
+        // ======================
+        // AUTENTICAÇÃO
+        // ======================
+        async function login() {
+            const email = document.getElementById('email').value;
+            const senha = document.getElementById('senha').value;
+            
+            try {
+                await auth.signInWithEmailAndPassword(email, senha);
+                alert('Login realizado!');
+            } catch (error) {
+                alert('Erro no login: ' + error.message);
+            }
+        }
+
+        async function criarConta() {
+            const email = document.getElementById('email').value;
+            const senha = document.getElementById('senha').value;
+
+            try {
+                await auth.createUserWithEmailAndPassword(email, senha);
+                alert('Conta criada com sucesso!');
+            } catch (error) {
+                alert('Erro ao criar conta: ' + error.message);
+            }
+        }
+
+        // Monitorar estado de autenticação
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                console.log('Usuário logado:', user.email);
+                document.getElementById('loginSection').style.display = 'none';
+                carregarDados();
+            } else {
+                document.getElementById('loginSection').style.display = 'block';
+            }
+        });
+
+        // Inicialização
+        window.onload = () => {
+            adicionarLinha('renda');
+            adicionarLinha('despesas');
+            adicionarMeta();
+        };
+    </script>
+</body>
+</html>
