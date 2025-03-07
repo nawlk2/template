@@ -51,25 +51,26 @@
         /* ... (mantenha o restante do CSS original) ... */
     </style>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js"></script>
+    <script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
 
-    <script>
-        const firebaseConfig = {
-            apiKey: "SUA_API_KEY",
-            authDomain: "SEU_PROJETO.firebaseapp.com",
-            projectId: "SEU_PROJETO",
-            storageBucket: "SEU_PROJETO.appspot.com",
-            messagingSenderId: "SEU_SENDER_ID",
-            appId: "SEU_APP_ID"
-        };
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyAjhv8XkZha6d7h_JfV9YyJbHb32qqax_g",
+    authDomain: "planilha-dd9b0.firebaseapp.com",
+    projectId: "planilha-dd9b0",
+    storageBucket: "planilha-dd9b0.firebasestorage.app",
+    messagingSenderId: "272598795983",
+    appId: "1:272598795983:web:545337a5dd8855842399ba"
+  };
 
-        const app = firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
-    </script>
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+</script>
+
 </head>
 <body>
     <div id="loginSection">
